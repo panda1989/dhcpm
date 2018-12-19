@@ -1,0 +1,17 @@
+{% extends "layout.html"%}
+{% block content %}
+<form method='POST'>
+  </br>
+  {{ form.csrf_token }}
+  {{ form.subnet.label }} {{ form.subnet() }}
+  </br>
+  {{ form.submit() }}
+  </br>
+  {% if form.errors %}
+  {{ form.errors }}
+  {% endif %}
+</form>
+{% if result %}
+<pre id='output'>{{ result }}</pre>  
+{% endif %}
+{% endblock%}

@@ -1,0 +1,18 @@
+{% extends "layout.html"%}
+{% block content %}
+<form method='POST'>
+  </br>
+  {{ form.csrf_token }}
+  {{ form.search_string.label }} {{ form.search_string() }}
+  {{ form.flag.label }} {{ form.flag() }}
+  </br>
+  {{ form.submit() }}
+  </br>
+  {% if form.errors %}
+  {{ form.errors }}
+  {% endif %}
+</form>
+{% if result %}
+<pre id='output'>{{ result }}</pre>  
+{% endif %}
+{% endblock%}

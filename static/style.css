@@ -1,0 +1,88 @@
+body { 
+  font-family: Helvetica, Arial, serif; 
+  color: black;
+  background-color: snow;
+  font-family: "Courier new", Courier, monospace;
+}
+
+#header {
+  position: relative;
+  top: 0px;
+  left: 0px;
+} 
+
+#header h1 { 
+  color: black;
+  text-align: center;
+}
+
+#left-up-block {
+  position: fixed;
+  top: 40px;
+  left: 30px;
+  padding: 10;
+  margin: 10;
+}
+
+#main_navigator {
+  position: fixed;
+  top: 200px;
+  left: 0px;
+}
+
+#main_navigator a:link {
+  text-decoration: none;
+  color: white;
+}
+
+#main_navigator a:visited {
+  text-decoration: none;
+  color: white;
+}
+
+#main_navigator li {
+  list-style-type: none;
+  box-shadow: 5px 5px 5px 5px silver;  
+  border-radius: 10px 10px 10px 10px;
+  background-color: blue;
+  font-weight: bold;
+  color: snow;
+  font-size: 18;
+  text-align: right;
+  vertical-align: middle;
+  padding: 7;
+  margin: 7;
+  width: 300;
+  height: 40;
+}
+
+#main_win {
+  border: 2px blue;
+  border-radius: 10px 10px 10px 10px;
+  box-shadow: 5px 5px 5px 5px silver;  
+  background-color: gainsboro;
+  padding: 7;
+  margin: 7;
+  width: 800;
+  height: 800;
+  position: relative;
+  top: 0px;
+  left: 400px;
+}
+
+#output {
+  background-color: black;
+  color: white;
+  max-width: 750px;
+  max-height: 650px; 
+  overflow: auto;
+}
+
+textarea {
+  width: 450px;
+  height: 150px;
+  overflow: auto;
+  resize: none;
+  background-color: black;
+  color: white;
+}
