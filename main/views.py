@@ -69,18 +69,43 @@ def searchmain(days='0'):
 
 @main.route("/addnet", methods=['GET','POST'])
 def addnet():
+    err_list = []
+    checkform = ConfigNetForm()
     form = AddNetForm()
-    #if form.ip.data and form.mask.data:
     if form.validate_on_submit():
-        netconfig = CreateConfig.create_subnets_config(form.ip.data, form.mask.data)
-        checkform = ConfigNetForm()
-        if checkform.validate_on_submit():
-            return render_template('addnet.html', result='SSSSSS')
-        checkform.text1.data = netconfig[0]
-        checkform.text2.data = netconfig[1]
-        return render_template('addnet.html', form=form, checkform=checkform, result='processing')
+        if CreateConfig.check_in_file(form.ip.data,'/etc/dhcp/subnets*'):
+            netconfig = CreateConfig.create_subnets_config(form.ip.data, form.mask.data)
+            checkform.text1.data = netconfig[0]
+            checkform.text2.data = netconfig[1]
+            return render_template('addnet.html', form=form, checkform=checkform)
+        else:
+            return render_template('addnet.html', form=form, result='Такая сеть уже существует!')
+    if checkform.submit.data:
+        err = Common.write_remote_file('172.17.0.26',checkform.text1.data,'/home/dhcpm/testfile')
+        if err[0]:
+            err_list.append('Ошибка записи файла на DHCP1')
+            err_list.append(err[0])
+        else:
+            err = Common.srvrestart('172.17.0.26')
+            if not err:
+                err_list.append('Ошибка перезагрузки DHCP1')
+                err_list.append(err[0])
+            else:
+                err = Common.write_remote_file('172.17.0.30',checkform.text2.data,'/home/dhcpm/testfile')
+                if err[0]:
+                    err_list.append('Ошибка записи файла на DHCP2')
+                    err_list.append(err[0])
+                else:
+                    err = Common.srvrestart('172.17.0.30')
+                    if not err:
+                        err_list.append('Ошибка перезагрузки DHCP1')
+                        err_list.append(err[0])
+                    else:
+                        flash(' Подсети добавлены ')
+                        return render_template('addnet.html', result=' Подсети добавлены ')
+        return render_template('addnet.html',result=str(err_list))
 
-    return render_template('addnet.html', form=form, result='Start')
+    return render_template('addnet.html', form=form)
 
 
 @main.route("/addhost", methods=['GET','POST'])

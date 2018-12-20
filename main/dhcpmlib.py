@@ -14,10 +14,10 @@ class DubbedNetworkError(ValueError):
 class Common:
 
     def srvrestart(server_ip):
-        pid_before = SSHcmd(server_ip,45242,'dhcpm','p@ss','cat /var/run/dhcp-server/dhcpd.pid')
-        SSHcmd(server_ip,45242,'dhcpm','p@ss','sudo systemctl restart isc-dhcp-server.service')
+        pid_before = Common.SSHcmd(server_ip,45242,'dhcpm','p@ss','cat /var/run/dhcp-server/dhcpd.pid')
+        Common.SSHcmd(server_ip,45242,'dhcpm','p@ss','sudo systemctl restart isc-dhcp-server.service')
         time.sleep(5)
-        pid_after = SSHcmd(server_ip,45242,'dhcpm','p@ss','cat /var/run/dhcp-server/dhcpd.pid')
+        pid_after = Common.SSHcmd(server_ip,45242,'dhcpm','p@ss','cat /var/run/dhcp-server/dhcpd.pid')
         try:
             if pid_before == pid_after:
                 return False
@@ -38,6 +38,19 @@ class Common:
             output.append(stdout.read().decode('utf-8')) #.decode('utf-8') for Python3
         cl.close()
         return output
+
+
+    def write_remote_file(server_ip,conf_str,remote_file):
+        #writecmd = 'sudo echo -e ' + conf_str + ' >> ' + remote_file
+        writecmd = 'sudo echo -e ' + "'" + conf_str + "' >> " + remote_file
+        err = Common.SSHcmd(server_ip,45242,'dhcpm','p@ss',writecmd)
+        try:
+            if err:
+                return err
+            else:
+                return True
+        except:
+            return None
 
 
 class StaticHost:
@@ -210,13 +223,13 @@ class CreateConfig:
         rule80_20 = int((net.num_addresses - 12)*0.812)
         range1 = allhosts[9] + ' ' + allhosts[rule80_20]
         range2 = allhosts[rule80_20 + 1] + ' ' + allhosts[-1]
-        new_net1 = ('subnet ' + subnet + ' netmask ' + netmask + '{\n'
+        new_net1 = ('subnet ' + subnet + ' netmask ' + netmask + ' {\n'
                     + 'range  ' + range1 + ';\n'
                     + 'option routers ' + router + ';\n'
                     + 'option subnet-mask ' + netmask + ';\n'
                     + 'option broadcast-address ' + brcast + ';\n'
                     + 'option static-routes 172.31.254.34 ' + router + ';\n}\n')
-        new_net2 = ('subnet ' + subnet + ' netmask ' + netmask + '{\n'
+        new_net2 = ('subnet ' + subnet + ' netmask ' + netmask + ' {\n'
                     + 'range  ' + range2 + ';\n'
                     + 'option routers ' + router + ';\n'
                     + 'option subnet-mask ' + netmask + ';\n'
@@ -225,19 +238,11 @@ class CreateConfig:
         return new_net1, new_net2
 
 
-    def check_in_file(in_prompt,out_prompt,*paths):
-        check = 1
-        while check:
-            check_str = raw_input(in_prompt)
+    def check_in_file(check_str,*paths):
+        for server in ('172.17.0.26','172.17.0.30'):
             for path in paths:
-                file = open(path)
-                if check_str in file.read():
-                    print (out_prompt + check_str + " уже существует!") #Python3
-                    #print out_prompt + check_str + " уже существует!"  #Python2
-                    check = 1
-                    break
+                file = "".join(Common.SSHcmd(server,45242,'dhcpm','p@ss','cat '+path))
+                if check_str in file:
+                    return False
                 else:
-                    check = 0
-                #print len(paths),path,'check=',check
-                file.close()
-        return check_str
+                    return True

@@ -1,22 +1,25 @@
 {% extends "layout.html"%}
 {% block content %}
-<form method='POST'>
-  </br>
-  {{ form.csrf_token }}
-  <table>
-    <tr>
-      <td>{{ form.ip.label }}</td><td>{{ form.ip() }}</td>
-    </tr>
-    <tr>
-      <td>{{ form.mask.label }}</td><td>{{ form.mask() }}</td>
-    </tr>
-  </table>
-  {{ form.submit() }}
-  </br>
-  {% if form.errors %}
-  {{ form.errors }}
-  {% endif %}
-</form>
+{% if form %}
+  <form method='POST'>
+    </br>
+    {{ form.csrf_token }}
+    <table>
+      <tr>
+        <td>{{ form.ip.label }}</td><td>{{ form.ip() }}</td>
+      </tr>
+      <tr>
+        <td>{{ form.mask.label }}</td><td>{{ form.mask() }}</td>
+      </tr>
+    </table>
+    {{ form.submit() }}
+    </br>
+    {% if form.errors %}
+    <p>Input Form:</p>
+    {{ form.errors }}
+    {% endif %}
+  </form>
+{% endif %}
 {% if checkform %}
   <form method='POST' rows='10' cols='50'>
     {{ checkform.csrf_token }}
@@ -26,8 +29,9 @@
       {{ checkform.text2.label }}</br>{{ checkform.text2() }}
     </br>
     {{ checkform.submit() }}
-    {% if form.errors %}
-    {{ form.errors }}
+    {% if checkform.errors %}
+    <p>Check Form:</p>
+    {{ checkform.errors }}
     {% endif %}
   </form>
 {% endif %}
