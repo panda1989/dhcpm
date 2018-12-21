@@ -101,7 +101,6 @@ def addnet():
                         err_list.append('Ошибка перезагрузки DHCP1')
                         err_list.append(err[0])
                     else:
-                        flash(' Подсети добавлены ')
                         return render_template('addnet.html', result=' Подсети добавлены ')
         return render_template('addnet.html',result=str(err_list))
 
@@ -138,7 +137,7 @@ def getinfo():
     subnets1 = open('/etc/dhcp/subnets1').read()
     hostspon = open('/etc/dhcp/hosts_pon').read()
     hoststech = open('/etc/dhcp/hosts_tech').read()
-    subnets2,leases2 = Common.SSHcmd('172.17.0.30',45242,'dhcp2','password','cat /etc/dhcp/subnets2','cat /var/lib/dhcp/dhcpd.leases')
+    subnets2,leases2 = Common.SSHcmd('172.17.0.30',45242,'dhcpm','p@ss','cat /etc/dhcp/subnets2','cat /var/lib/dhcp/dhcpd.leases')
     pattern_lease = re.compile(r'lease [\d\.]+ \{.*?\n\}',re.DOTALL)
     pattern_subnet = re.compile(r'subnet [\d\.\w ]+ \{.*?\n\}',re.DOTALL)
     pattern_host = re.compile(r'\{ .*?}',re.DOTALL)

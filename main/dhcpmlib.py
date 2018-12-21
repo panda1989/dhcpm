@@ -239,10 +239,15 @@ class CreateConfig:
 
 
     def check_in_file(check_str,*paths):
+        output = []
         for server in ('172.17.0.26','172.17.0.30'):
             for path in paths:
                 file = "".join(Common.SSHcmd(server,45242,'dhcpm','p@ss','cat '+path))
                 if check_str in file:
-                    return False
+                    output.append(False)
                 else:
-                    return True
+                    output.append(True)
+        if all(output) == True:
+            return True
+        else:
+            return False
