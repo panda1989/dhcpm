@@ -72,6 +72,28 @@ def addnet():
     err_list = []
     checkform = ConfigNetForm()
     form = AddNetForm()
+    subnets1 = open('/etc/dhcp/subnets1').read()
+    subnets2 = Common.SSHcmd('172.17.0.30',45242,'dhcpm','p@ss','cat /etc/dhcp/subnets2')[0]
+    pattern_subnet = re.compile(r'subnet [\d\.\w ]+ \{.*?\n\}',re.DOTALL)
+
+    for s in re.findall(pattern_subnet, subnets1+subnets2):
+        try:
+            inst = Subnet(s,1)
+        except ValueError:
+            pass
+
+    if form.validate_on_submit():
+        #if not any([IPv4Address(form.ip.data) in netaddr for netaddr in [item.network for item in Subnet.subnets_dict.values()]]):
+        #if not any([IPv4Address(form.ip.data) in item.network for item in Subnet.subnets_dict.values()]):
+        if not any([IPv4Network(form.ip.data + '/' + form.mask.data).overlaps(item.network) for item in Subnet.subnets_dict.values()]):
+            netconfig = CreateConfig.create_subnets_config(form.ip.data, form.mask.data)
+            checkform.text1.data = netconfig[0]
+            checkform.text2.data = netconfig[1]
+            return render_template('addnet.html', form=form, checkform=checkform)
+        else:
+            return render_template('addnet.html', form=form, result='Такая сеть уже существует!')
+
+    '''
     if form.validate_on_submit():
         if CreateConfig.check_in_file(form.ip.data,'/etc/dhcp/subnets*'):
             netconfig = CreateConfig.create_subnets_config(form.ip.data, form.mask.data)
@@ -80,6 +102,7 @@ def addnet():
             return render_template('addnet.html', form=form, checkform=checkform)
         else:
             return render_template('addnet.html', form=form, result='Такая сеть уже существует!')
+    '''
     if checkform.submit.data:
         err = Common.write_remote_file('172.17.0.26',checkform.text1.data,'/home/dhcpm/testfile')
         if err[0]:
