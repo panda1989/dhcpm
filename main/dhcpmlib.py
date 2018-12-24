@@ -213,16 +213,16 @@ class Search:
 
 class CreateConfig:
 
-    def create_subnets_config(add_net, add_mask):
+    def create_subnets_config(add_net, add_mask, static):
         net = IPv4Network(add_net + '/' + add_mask)
         allhosts = [str(i) for i in net.hosts()]
         subnet = str(net.network_address)
         netmask = str(net.netmask)
         router = allhosts[0]
         brcast = str(net.broadcast_address)
-        rule80_20 = int((net.num_addresses - 12)*0.812)
-        range1 = allhosts[9] + ' ' + allhosts[rule80_20]
-        range2 = allhosts[rule80_20 + 1] + ' ' + allhosts[-1]
+        rule80_20 = int((net.num_addresses - 4 - static)*0.78)
+        range1 = allhosts[static + 1] + ' ' + allhosts[static + rule80_20]
+        range2 = allhosts[static + rule80_20 + 1] + ' ' + allhosts[-1]
         new_net1 = ('subnet ' + subnet + ' netmask ' + netmask + ' {\n'
                     + 'range  ' + range1 + ';\n'
                     + 'option routers ' + router + ';\n'

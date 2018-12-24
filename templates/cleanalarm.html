@@ -3,8 +3,7 @@
 <form method='POST'>
   </br>
   {{ form.csrf_token }}
-  {{ form.search_string.label }} {{ form.search_string() }}
-  {{ form.flag.label }} {{ form.flag() }}
+  {{ form.alarm_type.label }} {{ form.alarm_type() }}
   {{ form.submit() }}
   </br>
   {% if form.errors %}

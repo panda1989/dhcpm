@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 #from flask.ext.wtf import Form
-from wtforms import RadioField, SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import Required, IPAddress
+from wtforms import IntegerField, RadioField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms.validators import IPAddress, NumberRange, Required
 
 class GetInfoForm(FlaskForm):
     subnet = StringField('Введите адрес хоста или подсети:', validators=[Required(),IPAddress()])
@@ -28,6 +28,7 @@ class AddHostForm(FlaskForm):
 class AddNetForm(FlaskForm):
     ip = StringField('IP-адрес подсети: ', validators=[Required(),IPAddress()])
     mask = StringField('Маска подсети: ', validators=[Required(),IPAddress()])
+    static = IntegerField('Количество статических хостов: ', default=8, validators=[Required(),NumberRange(min=1,max=100,message='ВНЕ ДИАПАЗОНА!(1-100)')])
     submit = SubmitField('Сформировать конфигурацию')
 
 class ConfigNetForm(FlaskForm):
@@ -38,3 +39,7 @@ class ConfigNetForm(FlaskForm):
 class ConfigHostForm(FlaskForm):
     text = TextAreaField('Проверьте конфигурацию: ', validators=[Required()])
     submit = SubmitField('Отправить конфигурацию на сервер')
+
+class CleanAlarmForm(FlaskForm):
+    alarm_type = SelectField('Очистить аварию: ',choices=[('nofree','Доступность свободных адресов'),('unknown','Запросы из неизвестной сети')])
+    submit = SubmitField('ОЧИСТИТЬ')

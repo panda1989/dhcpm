@@ -11,7 +11,7 @@ from flask import g, flash, render_template, redirect, request, session, url_for
 from ipaddress import IPv4Address,IPv4Network
 from .dhcpmlib import Common, CreateConfig, Search, Subnet, DynamicHost, StaticHost
 from . import main
-from .forms import AddHostForm, AddNetForm, ConfigHostForm, ConfigNetForm, GetInfoForm, SearchDayForm, SearchMainForm, RestartForm
+from .forms import AddHostForm, AddNetForm, CleanAlarmForm, ConfigHostForm, ConfigNetForm, GetInfoForm, SearchDayForm, SearchMainForm, RestartForm
 
 @main.route("/")
 def index():
@@ -83,27 +83,18 @@ def addnet():
             pass
 
     if form.validate_on_submit():
-        #if not any([IPv4Address(form.ip.data) in netaddr for netaddr in [item.network for item in Subnet.subnets_dict.values()]]):
-        #if not any([IPv4Address(form.ip.data) in item.network for item in Subnet.subnets_dict.values()]):
         if not any([IPv4Network(form.ip.data + '/' + form.mask.data).overlaps(item.network) for item in Subnet.subnets_dict.values()]):
-            netconfig = CreateConfig.create_subnets_config(form.ip.data, form.mask.data)
+            netconfig = CreateConfig.create_subnets_config(form.ip.data, form.mask.data, form.static.data)
             checkform.text1.data = netconfig[0]
             checkform.text2.data = netconfig[1]
             return render_template('addnet.html', form=form, checkform=checkform)
         else:
             return render_template('addnet.html', form=form, result='Такая сеть уже существует!')
+    #else:
+        #return render_template('addnet.html', form=form)
 
-    '''
-    if form.validate_on_submit():
-        if CreateConfig.check_in_file(form.ip.data,'/etc/dhcp/subnets*'):
-            netconfig = CreateConfig.create_subnets_config(form.ip.data, form.mask.data)
-            checkform.text1.data = netconfig[0]
-            checkform.text2.data = netconfig[1]
-            return render_template('addnet.html', form=form, checkform=checkform)
-        else:
-            return render_template('addnet.html', form=form, result='Такая сеть уже существует!')
-    '''
-    if checkform.submit.data:
+    #if checkform.submit.data:
+    if checkform.validate_on_submit():
         err = Common.write_remote_file('172.17.0.26',checkform.text1.data,'/home/dhcpm/testfile')
         if err[0]:
             err_list.append('Ошибка записи файла на DHCP1')
@@ -147,9 +138,23 @@ def cleandynamic():
     return render_template('index.html')
 
 
-@main.route("/cleanalarms")
+@main.route("/cleanalarms", methods=['GET','POST'])
 def cleanalarms():
-    return render_template('index.html')
+    form = CleanAlarmForm()
+    result = []
+    if form.alarm_type.data == 'nofree':
+        result.append(Common.SSHcmd('172.17.0.26',45242,'dhcpm','p@ss',"sed -i 's/no free leases/n o f r e e l e a s e s/' /var/log/dhcp.log")[0])
+        result.append(Common.SSHcmd('172.17.0.30',45242,'dhcpm','p@ss',"sed -i 's/no free leases/n o f r e e l e a s e s/' /var/log/dhcp.log")[0])
+        return render_template('cleanalarm.html', form=form, result=''.join(result))
+    if form.alarm_type.data == 'unknown':
+        result.append(Common.SSHcmd('172.17.0.30',45242,'dhcpm','p@ss',"sed -i 's/unknown network segment/u n k n o w n n e t w o r k/' /var/log/dhcp.log")[0])
+        result.append(Common.SSHcmd('172.17.0.26',45242,'dhcpm','p@ss',"sed -i 's/unknown network segment/u n k n o w n n e t w o r k/' /var/log/dhcp.log")[0])
+        return render_template('cleanalarm.html', form=form, result=''.join(result))
+    if form.alarm_type.data == 'test':
+        result.append(Common.SSHcmd('172.17.0.30',45242,'dhcpm','p@ss',"sudo sed -i 's/Dec/Dec /' /var/log/dhcp.log")[0])
+        result.append(Common.SSHcmd('172.17.0.26',45242,'dhcpm','p@ss',"sudo sed -i 's/Dec/Dec /' /var/log/dhcp.log")[0])
+        return render_template('cleanalarm.html', form=form, result=''.join(result))
+    return render_template('cleanalarm.html', form=form)
 
 
 @main.route("/getinfo", methods=['GET','POST'])
