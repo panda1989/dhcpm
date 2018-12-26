@@ -53,6 +53,52 @@ class Common:
             return None
 
 
+    def get_subnets():
+        pattern_subnet = re.compile(r'subnet [\d\.\w ]+ \{.*?\n\}',re.DOTALL)
+        subnets1 = Common.SSHcmd('172.17.0.26',45242,'dhcpm','p@ss','cat /etc/dhcp/subnets1')[0]
+        subnets2 = Common.SSHcmd('172.17.0.30',45242,'dhcpm','p@ss','cat /etc/dhcp/subnets2')[0]
+        for s in re.findall(pattern_subnet, subnets1+subnets2):
+            try:
+                inst = Subnet(s,1)
+            except ValueError:
+                pass
+        return Subnet.subnets_dict
+
+    def get_dynamic_hosts():
+        pattern_lease = re.compile(r'lease [\d\.]+ \{.*?\n\}',re.DOTALL)
+        leases1 = Common.SSHcmd('172.17.0.26',45242,'dhcpm','p@ss','cat /var/lib/dhcp/dhcpd.leases')[0]
+        leases2 = Common.SSHcmd('172.17.0.30',45242,'dhcpm','p@ss','cat /var/lib/dhcp/dhcpd.leases')[0]
+        for le in re.findall(pattern_lease, leases1):
+            inst = DynamicHost(le,'dhcp1')
+        for le in re.findall(pattern_lease, leases2):
+            inst = DynamicHost(le,'dhcp2')
+        return DynamicHost.dynamic_dict
+
+
+
+    def get_static_hosts():
+        pattern_host = re.compile(r'\{ .*?}',re.DOTALL)
+        hostspon1 = Common.SSHcmd('172.17.0.26',45242,'dhcpm','p@ss','cat /etc/dhcp/hosts_pon')[0]
+        hostspon2 = Common.SSHcmd('172.17.0.30',45242,'dhcpm','p@ss','cat /etc/dhcp/hosts_pon')[0]
+        hoststech1 = Common.SSHcmd('172.17.0.26',45242,'dhcpm','p@ss','cat /etc/dhcp/hosts_tech')[0]
+        hoststech2 = Common.SSHcmd('172.17.0.30',45242,'dhcpm','p@ss','cat /etc/dhcp/hosts_tech')[0]
+        if hostspon1 == hostspon2 and hoststech1 == hoststech2:
+            hostspon = hostspon1
+            hoststech = hoststech1
+            for file in hostspon, hoststech:
+                for h in re.findall(pattern_host, file):
+                    if file is hostspon:
+                        source = 'hosts_pon'
+                        inst = StaticHost(h,source)
+                    if file is hoststech:
+                        source = 'hosts_tech'
+                        inst = StaticHost(h,source)
+
+        else:
+            print('hostspon!=hostspon')
+        return StaticHost.static_dict
+
+
 class StaticHost:
 
     static_dict = {}
@@ -77,7 +123,7 @@ class Subnet:
 
     subnets_dict = {}  # {self.subnet : subnet_instance}
     def __init__(self,subnetrec,server):
-        self.subnet=self.range1start=self.range1end=self.range2start=self.range2end=self.router=self.mask=self.broadcast=self.stroutes=self.rfc3442 = ''
+        self.subnet=self.range1start=self.range1end=self.range2start=self.range2end=self.router=self.mask=self.broadcast=self.stroutes=self.rfc3442=self.network=self.firststatic=self.laststatic = ''
         self.subnetrec = subnetrec
         self.server = server
         self.hostlist = []
@@ -213,6 +259,14 @@ class Search:
 
 class CreateConfig:
 
+
+    def create_hosts_config(type, add_ip, add_mac): 
+        new_host = ('host ' + type + '.' + add_ip + '\n'
+                    + '{ hardware ethernet ' + add_mac + ';\n'
+                    + 'fixed-address ' + add_ip + '; }\n')
+        return new_host
+
+
     def create_subnets_config(add_net, add_mask, static):
         net = IPv4Network(add_net + '/' + add_mask)
         allhosts = [str(i) for i in net.hosts()]
@@ -251,3 +305,30 @@ class CreateConfig:
             return True
         else:
             return False
+
+
+    def write_control(data, filepaths):
+        err_list = []
+        err = Common.write_remote_file('172.17.0.26',data[0],filepaths[0])
+        if err[0]:
+            err_list.append('Ошибка записи файла на DHCP1')
+            err_list.append(err[0])
+        else:
+            err = Common.srvrestart('172.17.0.26')
+            if not err:
+                err_list.append('Ошибка перезагрузки DHCP1')
+                err_list.append(err[0])
+            else:
+                err = Common.write_remote_file('172.17.0.30',data[1],filepaths[0])
+                if err[0]:
+                    err_list.append('Ошибка записи файла на DHCP2')
+                    err_list.append(err[0])
+                else:
+                    err = Common.srvrestart('172.17.0.30')
+                    if not err:
+                        err_list.append('Ошибка перезагрузки DHCP1')
+                        err_list.append(err[0])
+                    else:
+                        return False
+        return err_list
+

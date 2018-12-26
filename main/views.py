@@ -45,7 +45,7 @@ def searchmain(days='0'):
                 output = []
                 var = form.search_string.data
                 result = Search.googler(fullLog,result,var)
-                session['result'] = result[:]
+                #session['result'] = result[:]
                 for r in result:
                     output.append(r)
                 output.append(str(len(result) - 2) + ' совпадений найдено')
@@ -53,13 +53,13 @@ def searchmain(days='0'):
             elif endFlag == 1:
                 output = []
                 var = form.search_string.data
-                result = session.get('result')
+                #result = session.get('result')
                 innerResult = Search.googler(result,innerResult,var)
                 for r in innerResult:
                     output.append(r)
                 output.append(str(len(innerResult) - 2) + ' совпадений найдено')
                 result = innerResult[:]
-                result = session.get('result')
+                #result = session.get('result')
                 innerResult = []
                 return render_template('searchmain.html',form=form,result='\n'.join(output))
             endFlag = int(form.flag.data)
@@ -69,7 +69,6 @@ def searchmain(days='0'):
 
 @main.route("/addnet", methods=['GET','POST'])
 def addnet():
-    err_list = []
     checkform = ConfigNetForm()
     form = AddNetForm()
     subnets1 = open('/etc/dhcp/subnets1').read()
@@ -90,33 +89,12 @@ def addnet():
             return render_template('addnet.html', form=form, checkform=checkform)
         else:
             return render_template('addnet.html', form=form, result='Такая сеть уже существует!')
-    #else:
-        #return render_template('addnet.html', form=form)
 
-    #if checkform.submit.data:
     if checkform.validate_on_submit():
-        err = Common.write_remote_file('172.17.0.26',checkform.text1.data,'/home/dhcpm/testfile')
-        if err[0]:
-            err_list.append('Ошибка записи файла на DHCP1')
-            err_list.append(err[0])
+        if CreateConfig.write_control([checkform.text1.data, checkform.text2.data], ['/home/dhcpm/testfile','/home/dhcpm/testfile']):
+            return render_template('addnet.html',result=str(err_list))
         else:
-            err = Common.srvrestart('172.17.0.26')
-            if not err:
-                err_list.append('Ошибка перезагрузки DHCP1')
-                err_list.append(err[0])
-            else:
-                err = Common.write_remote_file('172.17.0.30',checkform.text2.data,'/home/dhcpm/testfile')
-                if err[0]:
-                    err_list.append('Ошибка записи файла на DHCP2')
-                    err_list.append(err[0])
-                else:
-                    err = Common.srvrestart('172.17.0.30')
-                    if not err:
-                        err_list.append('Ошибка перезагрузки DHCP1')
-                        err_list.append(err[0])
-                    else:
-                        return render_template('addnet.html', result=' Подсети добавлены ')
-        return render_template('addnet.html',result=str(err_list))
+            return render_template('addnet.html',result='Подсети успешно добавлены!')
 
     return render_template('addnet.html', form=form)
 
@@ -124,12 +102,39 @@ def addnet():
 @main.route("/addhost", methods=['GET','POST'])
 def addhost():
     form = AddHostForm()
-    if form.mac.data and form.ip.data:
-        checkform = ConfigHostForm()
-        if checkform.text.data:
-            return render_template('addhost.html', form=form,result=checkform.text.data)
-        checkform.text.data = form.ip.data
-        return render_template('addhost.html', form=form, checkform=checkform)
+    checkform = ConfigHostForm()
+    hostspon = open('/etc/dhcp/hosts_pon').read()
+    hoststech = open('/etc/dhcp/hosts_tech').read()
+    pattern_host = re.compile(r'\{ .*?}',re.DOTALL)
+    Common.get_subnets()
+    Common.get_static_hosts()
+
+    if form.validate_on_submit():
+        net = [subnet for subnet in Subnet.subnets_dict.values() if IPv4Address(form.ip.data) in subnet.network][0]
+        if not any([form.mac.data in item.ip for item in StaticHost.static_dict.values()]):
+            static_list = [IPv4Address(h.ip) for h in StaticHost.static_dict.values() if IPv4Address(h.ip) in net.network]
+            if static_list:
+                ip = max(static_list) + 1
+            else:
+                ip = IPv4Address(net.router) + 1
+            if ip >= IPv4Address(net.range1start):
+                return render_template('addhost.html', form=form, result='!! Необходимо увеличить статический пул !!'+str(ip))
+            else:
+                checkform.text.data = CreateConfig.create_hosts_config(form.type.data, str(ip), form.mac.data)
+                return render_template('addhost.html', form=form, checkform=checkform)
+        else:
+            return render_template('addhost.html', form=form, result='Устройство с таким MAC-адресом уже привязано!')
+
+    if checkform.validate_on_submit():
+        if 'pon' in checkform.text.data:
+            path = '/home/dhcpm/testfile1'
+        elif 'tech' in checkform.text.data:
+            path = '/home/dhcpm/testfile2' 
+        if CreateConfig.write_control([checkform.text.data, checkform.text.data], [path, path]):
+            return render_template('addnet.html',result=str(err_list))
+        else:
+            return render_template('addnet.html',result='Статическая привязка успешно добавлена!')
+
     return render_template('addhost.html', form=form)
 
 
@@ -160,40 +165,13 @@ def cleanalarms():
 @main.route("/getinfo", methods=['GET','POST'])
 def getinfo():
 
-    date = time.ctime()
-    leases1 = open('/var/lib/dhcp/dhcpd.leases').read()
-    subnets1 = open('/etc/dhcp/subnets1').read()
-    hostspon = open('/etc/dhcp/hosts_pon').read()
-    hoststech = open('/etc/dhcp/hosts_tech').read()
-    subnets2,leases2 = Common.SSHcmd('172.17.0.30',45242,'dhcpm','p@ss','cat /etc/dhcp/subnets2','cat /var/lib/dhcp/dhcpd.leases')
-    pattern_lease = re.compile(r'lease [\d\.]+ \{.*?\n\}',re.DOTALL)
-    pattern_subnet = re.compile(r'subnet [\d\.\w ]+ \{.*?\n\}',re.DOTALL)
-    pattern_host = re.compile(r'\{ .*?}',re.DOTALL)
-    host_instance_list = []
-
-    for s in re.findall(pattern_subnet, subnets1+subnets2):
-        try:
-            inst = Subnet(s,1)
-        except ValueError:
-            pass
-
-    for le in re.findall(pattern_lease, leases1):
-        inst = DynamicHost(le,'dhcp1')
-    for le in re.findall(pattern_lease, leases2):
-        inst = DynamicHost(le,'dhcp2')
-
-    for file in hostspon, hoststech:
-        for h in re.findall(pattern_host, file):
-            if file is hostspon:
-                source = 'hosts_pon'
-                inst = StaticHost(h,source)
-            if file is hoststech:
-                source = 'hosts_tech'
-                inst = StaticHost(h,source)
-
+    #date = time.ctime()
     form = GetInfoForm()
     if form.validate_on_submit():
         user_input = IPv4Address(form.subnet.data)
+        Common.get_subnets()
+        Common.get_dynamic_hosts()
+        Common.get_static_hosts()
         for n in Subnet.subnets_dict:
             if user_input in Subnet.subnets_dict[n].network:
                 result_stat = '\n'.join(Subnet.subnets_dict[Subnet.subnets_dict[n].subnet].print_subnet_static(StaticHost.static_dict))

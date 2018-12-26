@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 #from flask.ext.wtf import Form
 from wtforms import IntegerField, RadioField, SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import IPAddress, NumberRange, Required
+from wtforms.validators import IPAddress, NumberRange, Regexp, Required
 
 class GetInfoForm(FlaskForm):
     subnet = StringField('Введите адрес хоста или подсети:', validators=[Required(),IPAddress()])
@@ -21,8 +21,9 @@ class RestartForm(FlaskForm):
     submit = SubmitField('Перезагрузить')
 
 class AddHostForm(FlaskForm):
-    mac = StringField('MAC-адрес [01:23:45:67:89:ab]: ', validators=[Required()])
+    mac = StringField('MAC-адрес [01:23:45:67:89:ab]: ', validators=[Regexp('^([0-9a-f]{2}:){5}([0-9a-f]{2})$',message='MAC-адрес может содержать только символы 0-9,:,a-f(маленькие!)')])
     ip = StringField('IP-адрес: ', validators=[Required(),IPAddress()])
+    type = SelectField('Тип хоста: ',choices=[('pon','Обычный абонент PON'),('tech','Транк, шлюз Ростелеком, проч. технологические')])
     submit = SubmitField('Сформировать конфигурацию')
 
 class AddNetForm(FlaskForm):
