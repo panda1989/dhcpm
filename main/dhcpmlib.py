@@ -5,6 +5,7 @@ import os
 import re
 import time
 import paramiko
+import random
 from ipaddress import IPv4Address,IPv4Network
 
 
@@ -26,7 +27,6 @@ class Common:
         except:
             return None
 
-
     def SSHcmd(hostname,port,username,password,*args):
         cl = paramiko.SSHClient()
         cl.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -39,7 +39,6 @@ class Common:
         cl.close()
         return output
 
-
     def write_remote_file(server_ip,conf_str,remote_file):
         #writecmd = 'sudo echo -e ' + conf_str + ' >> ' + remote_file
         writecmd = 'sudo echo -e ' + "'" + conf_str + "' >> " + remote_file
@@ -51,7 +50,6 @@ class Common:
                 return True
         except:
             return None
-
 
     def get_subnets():
         pattern_subnet = re.compile(r'subnet [\d\.\w ]+ \{.*?\n\}',re.DOTALL)
@@ -73,8 +71,6 @@ class Common:
         for le in re.findall(pattern_lease, leases2):
             inst = DynamicHost(le,'dhcp2')
         return DynamicHost.dynamic_dict
-
-
 
     def get_static_hosts():
         pattern_host = re.compile(r'\{ .*?}',re.DOTALL)
@@ -98,6 +94,12 @@ class Common:
             print('hostspon!=hostspon')
         return StaticHost.static_dict
 
+    def string_generator(str_len,alphabet='abcdefghijklmnopqrstuvwxyz'):
+        res = []
+        while str_len:
+            res.append(alphabet[random.randint(0,len(alphabet) - 1)])
+            str_len -= 1
+        return ''.join(res)
 
 class StaticHost:
 
@@ -113,7 +115,6 @@ class StaticHost:
             if 'fixed-address' in line:
                 self.ip = line[14:-3]
         StaticHost.static_dict[self.ip] = self
-
 
     def __repr__(self):
         return self.hostrec
@@ -156,7 +157,6 @@ class Subnet:
             if IPv4Address(lease) in self.network:
                 self.hostlist.append(leases[lease])
 
-
     def print_subnet_dynamic(self, leasedict):
         dynamic_page_list = []
         net = self.subnet
@@ -172,7 +172,6 @@ class Subnet:
             dynamic_page_list.append(i[0] + '\t' + i[1] + '\t' + i[2] + '\t' + i[3] + '\t' + i[4])
         dynamic_page_list.append('--------------------------------------------------------------------------------\n')
         return dynamic_page_list
-
 
     def print_subnet_static(self, hostdict):
         static_page_list = []
@@ -225,9 +224,9 @@ class DynamicHost:
                 self.remoteid = line[25:-1]
         DynamicHost.dynamic_dict[self.lease] = self
 
-
     def __repr__(self):
         return self.leaserec
+
 
 class Search:
 
@@ -256,16 +255,25 @@ class Search:
             fileL.close()
         return fullLog
 
+    def put_temp(data):
+        tmp_filename = '/tmp/' + Common.string_generator(4)
+        with open(tmp_filename,'x') as f:
+            f.write(data)
+        return tmp_filename
+
+    def get_temp(tmp_filename):
+        with open(tmp_filename,'r') as f:
+            res = f.read()
+        os.remove(tmp_filename)
+        return res
 
 class CreateConfig:
-
 
     def create_hosts_config(type, add_ip, add_mac): 
         new_host = ('host ' + type + '.' + add_ip + '\n'
                     + '{ hardware ethernet ' + add_mac + ';\n'
                     + 'fixed-address ' + add_ip + '; }\n')
         return new_host
-
 
     def create_subnets_config(add_net, add_mask, static):
         net = IPv4Network(add_net + '/' + add_mask)
@@ -291,7 +299,6 @@ class CreateConfig:
                     + 'option static-routes 172.31.254.34 ' + router + ';\n}\n')
         return new_net1, new_net2
 
-
     def check_in_file(check_str,*paths):
         output = []
         for server in ('172.17.0.26','172.17.0.30'):
@@ -305,7 +312,6 @@ class CreateConfig:
             return True
         else:
             return False
-
 
     def write_control(data, filepaths):
         err_list = []

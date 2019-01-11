@@ -45,7 +45,7 @@ def searchmain(days='0'):
                 output = []
                 var = form.search_string.data
                 result = Search.googler(fullLog,result,var)
-                #session['result'] = result[:]
+                session['tmp_filename'] = Search.put_temp(''.join(result))
                 for r in result:
                     output.append(r)
                 output.append(str(len(result) - 2) + ' совпадений найдено')
@@ -53,13 +53,13 @@ def searchmain(days='0'):
             elif endFlag == 1:
                 output = []
                 var = form.search_string.data
-                #result = session.get('result')
+                result = Search.get_temp(session.get('tmp_filename'))
                 innerResult = Search.googler(result,innerResult,var)
                 for r in innerResult:
                     output.append(r)
                 output.append(str(len(innerResult) - 2) + ' совпадений найдено')
                 result = innerResult[:]
-                #result = session.get('result')
+                result = Search.get_temp(session.get('tmp_filename'))
                 innerResult = []
                 return render_template('searchmain.html',form=form,result='\n'.join(output))
             endFlag = int(form.flag.data)
