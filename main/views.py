@@ -23,33 +23,33 @@ def search():
 
     form = SearchDayForm()
     if form.validate_on_submit():
+        #days = str(form.day_counter.data)
         days = form.day_counter.data
         return redirect(url_for('main.searchmain',days=days))
     return render_template('searchday.html',form=form,result='')
 
 @main.route("/searchmain",methods=['GET','POST'])
-def searchmain(days='0'):
+def searchmain():
     output = []
     result = []
     innerResult = []
     endFlag = 2
-    fullLog = Search.logLoader(int(request.args['days']))
+    days=int(request.args['days'])
+    fullLog = Search.logLoader(days)
     form = SearchMainForm()
     if form.validate_on_submit():
+        endFlag = int(form.flag.data)
         while endFlag != 0:
-            if endFlag == 3:
-                fullLog = Search.logLoader(int(request.args['days']))
-                result = []
-                endFlag = 2
             if endFlag == 2:
                 output = []
                 var = form.search_string.data
                 result = Search.googler(fullLog,result,var)
-                session['tmp_filename'] = Search.put_temp(''.join(result))
+                session['tmp_filename'] = Search.put_temp(result)
                 for r in result:
                     output.append(r)
                 output.append(str(len(result) - 2) + ' совпадений найдено')
                 return render_template('searchmain.html',form=form,result='\n'.join(output))
+                #return render_template('searchmain.html',form=form,result='\n'.join(output))
             elif endFlag == 1:
                 output = []
                 var = form.search_string.data
@@ -59,11 +59,12 @@ def searchmain(days='0'):
                     output.append(r)
                 output.append(str(len(innerResult) - 2) + ' совпадений найдено')
                 result = innerResult[:]
-                result = Search.get_temp(session.get('tmp_filename'))
+                session['tmp_filename'] = Search.put_temp(result)
                 innerResult = []
                 return render_template('searchmain.html',form=form,result='\n'.join(output))
-            endFlag = int(form.flag.data)
-    session['result'] = None
+            #endFlag = int(form.flag.data)
+    session['tmp_filename'] = None
+    Search.clear_temp()
     return render_template('searchmain.html', form=form, result='')
 
 

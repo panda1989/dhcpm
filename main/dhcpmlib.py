@@ -5,6 +5,7 @@ import os
 import re
 import time
 import paramiko
+import pickle
 import random
 from ipaddress import IPv4Address,IPv4Network
 
@@ -256,16 +257,21 @@ class Search:
         return fullLog
 
     def put_temp(data):
-        tmp_filename = '/tmp/' + Common.string_generator(4)
-        with open(tmp_filename,'x') as f:
-            f.write(data)
+        tmp_filename = os.path.join('/var/www/dhcpm/dhcpm/tmp/' + Common.string_generator(4))
+        with open(tmp_filename,'wb') as f:
+            pickle.dump(data,f)
         return tmp_filename
 
     def get_temp(tmp_filename):
-        with open(tmp_filename,'r') as f:
-            res = f.read()
-        os.remove(tmp_filename)
+        with open(tmp_filename,'rb') as f:
+            res = pickle.load(f)
         return res
+
+    def clear_temp():
+        filelist = [f for f in os.listdir('/var/www/dhcpm/dhcpm/tmp/')]
+        for f in filelist:
+            os.remove(os.path.join('/var/www/dhcpm/dhcpm/tmp/',f))
+
 
 class CreateConfig:
 
