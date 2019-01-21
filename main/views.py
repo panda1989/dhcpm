@@ -11,7 +11,8 @@ from flask import g, flash, render_template, redirect, request, session, url_for
 from ipaddress import IPv4Address,IPv4Network
 from .dhcpmlib import Common, CreateConfig, Search, Subnet, DynamicHost, StaticHost
 from . import main
-from .forms import AddHostForm, AddNetForm, CleanAlarmForm, ConfigHostForm, ConfigNetForm, GetInfoForm, SearchDayForm, SearchMainForm, RestartForm
+from .forms import AddHostForm, AddNetForm, CleanAlarmForm, CleanDynamicForm, ConfigHostForm, ConfigNetForm, GetInfoForm, SearchDayForm, SearchMainForm, RestartForm
+from .config import config
 
 @main.route("/")
 def index():
@@ -139,9 +140,15 @@ def addhost():
     return render_template('addhost.html', form=form)
 
 
-@main.route("/cleandynamic")
+@main.route("/cleandynamic", methods=['GET','POST'])
 def cleandynamic():
-    return render_template('index.html')
+    form = CleanDynamicForm()
+    result = []
+    if form.validate_on_submit():
+        for srv in ('172.17.0.26', '172.17.0.30'):
+            result.append(Common.SSHcmd(srv,45242,'dhcpm','p@ss','echo "' + config.LEASES_TEMPLATE + '" > ' + config.PATH_LEASES))
+        return render_template('cleandynamic.html', form=form, result=result)
+    return render_template('cleandynamic.html', form=form)
 
 
 @main.route("/cleanalarms", methods=['GET','POST'])

@@ -8,12 +8,12 @@ class GetInfoForm(FlaskForm):
     submit = SubmitField('ИСКАТЬ')
 
 class SearchDayForm(FlaskForm):
-    day_counter = SelectField('Глубина поиска, дней: ',choices=[('0','0'),('1','1'),('2','2'),('3','3'),('4','4'),('5','5'),('6','6'),('7','7')])
+    day_counter = SelectField('Глубина поиска, дней: ',choices=[('0','0'),('1','1'),('2','2'),('3','3'),('4','4'),('5','5'),('6','6'),('7','7')],default='0')
     submit = SubmitField('ПРИМЕНИТЬ')
 
 class SearchMainForm(FlaskForm):
     search_string = StringField('Строка поиска: ', validators=[Required()])
-    flag = RadioField(' ',choices=[('1','Искать в ранее найденном'),('2','Новый поиск'),('3','Перезагрузить лог-файлы (соответственно ранее выбранной глубине поиска)')])
+    flag = RadioField(' ',choices=[('1','Искать в ранее найденном'),('2','Новый поиск')],default='2')
     submit = SubmitField('ИСКАТЬ')
 
 class RestartForm(FlaskForm):
@@ -44,3 +44,6 @@ class ConfigHostForm(FlaskForm):
 class CleanAlarmForm(FlaskForm):
     alarm_type = SelectField('Очистить аварию: ',choices=[('nofree','Доступность свободных адресов'),('unknown','Запросы из неизвестной сети')])
     submit = SubmitField('ОЧИСТИТЬ')
+
+class CleanDynamicForm(FlaskForm):
+    submit = SubmitField('АГА')

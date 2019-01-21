@@ -1,0 +1,16 @@
+{% extends "layout.html"%}
+{% block content %}
+<p>Очистить файлы динамических аренд и перезагрузить сервера:</p>
+<form method='POST'>
+  </br>
+  {{ form.csrf_token }}
+  {{ form.submit() }}
+  </br>
+  {% if form.errors %}
+  {{ form.errors }}
+  {% endif %}
+</form>
+{% if result %}
+<pre id='output'>{{ result }}</pre>  
+{% endif %}
+{% endblock%}

@@ -23,15 +23,17 @@
     <div id="main_navigator">
       <nav>
         <ul>
-          <li><a href="{{ url_for('.search') }}"> ПОИСК ПО ЛОГАМ </a></li>
-          <li><a href="{{ url_for('.addhost') }}"> ДОБАВИТЬ СТАТИЧЕСКИЙ ХОСТ </a></li>
-          <li><a href="{{ url_for('.addnet') }}"> ДОБАВИТЬ ПОДСЕТЬ </a></li>
-          <li><a href="{{ url_for('.cleanalarms') }}"> ОЧИСТИТЬ АВАРИИ </a></li>
-          <li><a href="{{ url_for('.cleandynamic') }}"> ОЧИСТИТЬ ДИНАМИЧЕСКИЕ АРЕНДЫ </a></li>
-          <li><a href="{{ url_for('.restart') }}"> РЕСТАРТ СЕРВЕРОВ </a></li>
-          <li><a href="{{ url_for('.getinfostat') }}"> ПОЛУЧИТЬ ИНФОРМАЦИЮ </br> (ПО ВСЕМ ПОДСЕТЯМ) </a></li>
-          <li><a href="{{ url_for('.getinfo') }}"> ПОЛУЧИТЬ ИНФОРМАЦИЮ </br> (ПО ВЫБРАННОЙ ПОДСЕТИ) </a></li>
-          <li><a href="{{ url_for('.index') }}"> ДОМОЙ </a></li>
+          <li class="show"><a href="{{ url_for('.search') }}"> ПОИСК ПО ЛОГАМ </a></li>
+          <li class="show"><a href="{{ url_for('.getinfostat') }}"> ПОЛУЧИТЬ ИНФОРМАЦИЮ </br> (ПО ВСЕМ ПОДСЕТЯМ) </a></li>
+          <li class="show"><a href="{{ url_for('.getinfo') }}"> ПОЛУЧИТЬ ИНФОРМАЦИЮ </br> (ПО ВЫБРАННОЙ ПОДСЕТИ) </a></li>
+          </br>
+          <li class="warn"><a href="{{ url_for('.addhost') }}"> ДОБАВИТЬ СТАТИЧЕСКИЙ ХОСТ </a></li>
+          <li class="warn"><a href="{{ url_for('.addnet') }}"> ДОБАВИТЬ ПОДСЕТЬ </a></li>
+          <li class="warn"><a href="{{ url_for('.cleanalarms') }}"> ОЧИСТИТЬ АВАРИИ </a></li>
+          <li class="warn"><a href="{{ url_for('.cleandynamic') }}"> ОЧИСТИТЬ ДИНАМИЧЕСКИЕ АРЕНДЫ </a></li>
+          <li class="warn"><a href="{{ url_for('.restart') }}"> РЕСТАРТ СЕРВЕРОВ </a></li>
+          </br>
+          <li class="show"><a href="{{ url_for('.index') }}"> ДОМОЙ </a></li>
         </ul> 
       </nav>
     </div>

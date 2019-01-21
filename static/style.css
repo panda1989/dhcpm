@@ -44,7 +44,6 @@ body {
   list-style-type: none;
   box-shadow: 5px 5px 5px 5px silver;  
   border-radius: 10px 10px 10px 10px;
-  background-color: blue;
   font-weight: bold;
   color: snow;
   font-size: 18;
@@ -54,6 +53,14 @@ body {
   margin: 7;
   width: 300;
   height: 40;
+}
+
+.warn {
+  background-color: red;
+}
+
+.show {
+  background-color: blue;
 }
 
 #main_win {
