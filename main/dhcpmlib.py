@@ -8,7 +8,21 @@ import paramiko
 import pickle
 import random
 from ipaddress import IPv4Address,IPv4Network
+from .config import config
 
+SRV1_IP = config.SRV1_IP
+SRV2_IP = config.SRV2_IP
+SRV_PORT = config.SRV_PORT
+SRV_LOGIN = config.SRV_LOGIN
+SRV_PASS = config.SRV_PASS
+
+PATH_SUBNETS1 = config.PATH_SUBNETS1
+PATH_SUBNETS2 = config.PATH_SUBNETS2
+PATH_PON = config.PATH_PON
+PATH_TECH = config.PATH_TECH
+PATH_LOG = config.PATH_LOG
+PATH_LEASES = config.PATH_LEASES
+LEASES_TEMPLATE = config.LEASES_TEMPLATE
 
 class DubbedNetworkError(ValueError):
     pass
@@ -16,46 +30,46 @@ class DubbedNetworkError(ValueError):
 class Common:
 
     def srvrestart(server_ip):
-        pid_before = Common.SSHcmd(server_ip,45242,'dhcpm','p@ss','cat /var/run/dhcp-server/dhcpd.pid')
-        Common.SSHcmd(server_ip,45242,'dhcpm','p@ss','sudo systemctl restart isc-dhcp-server.service')
+        pid_before = Common.SSHcmd(server_ip,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat /var/run/dhcp-server/dhcpd.pid')[0]
+        Common.SSHcmd(server_ip,SRV_PORT,SRV_LOGIN,SRV_PASS,'sudo systemctl restart isc-dhcp-server.service')
         time.sleep(5)
-        pid_after = Common.SSHcmd(server_ip,45242,'dhcpm','p@ss','cat /var/run/dhcp-server/dhcpd.pid')
+        pid_after = Common.SSHcmd(server_ip,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat /var/run/dhcp-server/dhcpd.pid')[0]
+        check = Common.SSHcmd(server_ip,SRV_PORT,SRV_LOGIN,SRV_PASS,'sudo systemctl is-failed isc-dhcp-server.service')[0]
         try:
-            if pid_before == pid_after:
+            if pid_before == pid_after or check == 'failed':
                 return False
             else:
                 return True
         except:
             return None
 
-    def SSHcmd(hostname,port,username,password,*args):
+    def SSHcmd(hostname,port,username,password,arg):
         cl = paramiko.SSHClient()
         cl.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         cl.connect(hostname=hostname,port=port,username=username,password=password)
         output = []
-        for arg in args:
-            stdin,stdout,stderr=cl.exec_command(arg)
-            #output.append(stdout.read().decode('utf-8'))
-            output.append(stdout.read().decode('utf-8')) #.decode('utf-8') for Python3
+        stdin,stdout,stderr=cl.exec_command(arg)
+        output.append(stdout.read().decode('utf-8')) #.decode('utf-8') for Python3
+        output.append(stderr.read().decode('utf-8')) #.decode('utf-8') for Python3
         cl.close()
         return output
 
     def write_remote_file(server_ip,conf_str,remote_file):
-        #writecmd = 'sudo echo -e ' + conf_str + ' >> ' + remote_file
-        writecmd = 'sudo echo -e ' + "'" + conf_str + "' >> " + remote_file
-        err = Common.SSHcmd(server_ip,45242,'dhcpm','p@ss',writecmd)
+        #writecmd = 'sudo echo -e ' + "'" + conf_str + "' >> " + remote_file
+        writecmd = 'echo "' + conf_str + '" | sudo tee -a ' + remote_file
+        err = Common.SSHcmd(server_ip,SRV_PORT,SRV_LOGIN,SRV_PASS,writecmd)[1]
         try:
             if err:
                 return err
             else:
-                return True
+                return False
         except:
-            return None
+            return True
 
     def get_subnets():
         pattern_subnet = re.compile(r'subnet [\d\.\w ]+ \{.*?\n\}',re.DOTALL)
-        subnets1 = Common.SSHcmd('172.17.0.26',45242,'dhcpm','p@ss','cat /etc/dhcp/subnets1')[0]
-        subnets2 = Common.SSHcmd('172.17.0.30',45242,'dhcpm','p@ss','cat /etc/dhcp/subnets2')[0]
+        subnets1 = Common.SSHcmd(SRV1_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + PATH_SUBNETS1)[0]
+        subnets2 = Common.SSHcmd(SRV2_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + PATH_SUBNETS2)[0]
         for s in re.findall(pattern_subnet, subnets1+subnets2):
             try:
                 inst = Subnet(s,1)
@@ -65,8 +79,8 @@ class Common:
 
     def get_dynamic_hosts():
         pattern_lease = re.compile(r'lease [\d\.]+ \{.*?\n\}',re.DOTALL)
-        leases1 = Common.SSHcmd('172.17.0.26',45242,'dhcpm','p@ss','cat /var/lib/dhcp/dhcpd.leases')[0]
-        leases2 = Common.SSHcmd('172.17.0.30',45242,'dhcpm','p@ss','cat /var/lib/dhcp/dhcpd.leases')[0]
+        leases1 = Common.SSHcmd(SRV1_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + PATH_LEASES)[0]
+        leases2 = Common.SSHcmd(SRV2_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + PATH_LEASES)[0]
         for le in re.findall(pattern_lease, leases1):
             inst = DynamicHost(le,'dhcp1')
         for le in re.findall(pattern_lease, leases2):
@@ -75,10 +89,10 @@ class Common:
 
     def get_static_hosts():
         pattern_host = re.compile(r'\{ .*?}',re.DOTALL)
-        hostspon1 = Common.SSHcmd('172.17.0.26',45242,'dhcpm','p@ss','cat /etc/dhcp/hosts_pon')[0]
-        hostspon2 = Common.SSHcmd('172.17.0.30',45242,'dhcpm','p@ss','cat /etc/dhcp/hosts_pon')[0]
-        hoststech1 = Common.SSHcmd('172.17.0.26',45242,'dhcpm','p@ss','cat /etc/dhcp/hosts_tech')[0]
-        hoststech2 = Common.SSHcmd('172.17.0.30',45242,'dhcpm','p@ss','cat /etc/dhcp/hosts_tech')[0]
+        hostspon1 = Common.SSHcmd(SRV1_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + PATH_PON)[0]
+        hostspon2 = Common.SSHcmd(SRV2_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + PATH_PON)[0]
+        hoststech1 = Common.SSHcmd(SRV1_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + PATH_TECH)[0]
+        hoststech2 = Common.SSHcmd(SRV2_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + PATH_TECH)[0]
         if hostspon1 == hostspon2 and hoststech1 == hoststech2:
             hostspon = hostspon1
             hoststech = hoststech1
@@ -92,7 +106,7 @@ class Common:
                         inst = StaticHost(h,source)
 
         else:
-            print('hostspon!=hostspon')
+            return 'hostspon!=hostspon'
         return StaticHost.static_dict
 
     def string_generator(str_len,alphabet='abcdefghijklmnopqrstuvwxyz'):
@@ -241,19 +255,18 @@ class Search:
 
     def logLoader(fCounter):
         fullLog = []
-        logFileList1 = sorted([i for i in os.listdir('/var/log/') if 'dhcp' in i])
-        logFileList2 = sorted([i for i in Common.SSHcmd('172.17.0.30',45242,'dhcp2','password','ls /var/log/ | grep dhcp')[0].split('\n') if 'dhcp' in i])
+        #logFileList1 = sorted([i for i in Common.SSHcmd(SRV1_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'ls /var/log/ | grep dhcp')[0].split('\n')])
+        #logFileList2 = sorted([i for i in Common.SSHcmd(SRV2_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'ls /var/log/ | grep dhcp')[0].split('\n')])
+        logFileList1 = [i for i in Common.SSHcmd(SRV1_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'ls /var/log/ | grep dhcp')[0].split('\n')]
+        logFileList2 = [i for i in Common.SSHcmd(SRV2_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'ls /var/log/ | grep dhcp')[0].split('\n')]
         while fCounter >= 0:
-            localFile = '/var/log/' + logFileList1[fCounter]
-            remoteFile = 'cat /var/log/' + logFileList2[fCounter]
-            fileL = open(localFile)
-            fileR = Common.SSHcmd('172.17.0.30',45242,'dhcp2','password',remoteFile)[0].split('\n')
-            for sl in fileL:
+            file1 = Common.SSHcmd(SRV1_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat /var/log/' + logFileList1[fCounter])[0].split('\n')
+            file2 = Common.SSHcmd(SRV2_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat /var/log/' + logFileList2[fCounter])[0].split('\n')
+            for sl in file1:
                 fullLog.append(sl.rstrip())
-            for sr in fileR:
+            for sr in file2:
                 fullLog.append(sr.rstrip())
             fCounter -= 1
-            fileL.close()
         return fullLog
 
     def put_temp(data):
@@ -278,7 +291,7 @@ class CreateConfig:
     def create_hosts_config(type, add_ip, add_mac): 
         new_host = ('host ' + type + '.' + add_ip + '\n'
                     + '{ hardware ethernet ' + add_mac + ';\n'
-                    + 'fixed-address ' + add_ip + '; }\n')
+                    + 'fixed-address ' + add_ip + '; }')  # -\n
         return new_host
 
     def create_subnets_config(add_net, add_mask, static):
@@ -296,20 +309,20 @@ class CreateConfig:
                     + 'option routers ' + router + ';\n'
                     + 'option subnet-mask ' + netmask + ';\n'
                     + 'option broadcast-address ' + brcast + ';\n'
-                    + 'option static-routes 172.31.254.34 ' + router + ';\n}\n')
+                    + 'option static-routes 172.31.254.34 ' + router + ';\n}')  # -\n
         new_net2 = ('subnet ' + subnet + ' netmask ' + netmask + ' {\n'
                     + 'range  ' + range2 + ';\n'
                     + 'option routers ' + router + ';\n'
                     + 'option subnet-mask ' + netmask + ';\n'
                     + 'option broadcast-address ' + brcast + ';\n'
-                    + 'option static-routes 172.31.254.34 ' + router + ';\n}\n')
+                    + 'option static-routes 172.31.254.34 ' + router + ';\n}')  # -\n
         return new_net1, new_net2
 
     def check_in_file(check_str,*paths):
         output = []
-        for server in ('172.17.0.26','172.17.0.30'):
+        for server in (SRV1_IP,SRV2_IP):
             for path in paths:
-                file = "".join(Common.SSHcmd(server,45242,'dhcpm','p@ss','cat '+path))
+                file = "".join(Common.SSHcmd(server,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + path))
                 if check_str in file:
                     output.append(False)
                 else:
@@ -321,26 +334,52 @@ class CreateConfig:
 
     def write_control(data, filepaths):
         err_list = []
-        err = Common.write_remote_file('172.17.0.26',data[0],filepaths[0])
+        err = Common.write_remote_file(SRV1_IP,data[0],filepaths[0])
+        if err:
+            err_list.append('Ошибка записи файла на DHCP1')
+            err_list.append(err)
+        else:
+            err = Common.srvrestart(SRV1_IP)
+            if not err:
+                err_list.append('Ошибка перезагрузки DHCP1')
+                err_list.append(err)
+            else:
+                err = Common.write_remote_file(SRV2_IP,data[1],filepaths[1])
+                if err:
+                    err_list.append('Ошибка записи файла на DHCP2')
+                    err_list.append(err)
+                else:
+                    err = Common.srvrestart(SRV2_IP)
+                    if not err:
+                        err_list.append('Ошибка перезагрузки DHCP1')
+                        err_list.append(err)
+                    else:
+                        return False
+        return err_list
+
+## !!!!!!!!!!!!!!!!!!!!!!
+    def write_control_old(data, filepaths):
+        err_list = []
+        err = Common.write_remote_file(SRV1_IP,data[0],filepaths[0])
         if err[0]:
             err_list.append('Ошибка записи файла на DHCP1')
             err_list.append(err[0])
         else:
-            err = Common.srvrestart('172.17.0.26')
+            err = Common.srvrestart(SRV1_IP)
             if not err:
                 err_list.append('Ошибка перезагрузки DHCP1')
                 err_list.append(err[0])
             else:
-                err = Common.write_remote_file('172.17.0.30',data[1],filepaths[0])
+                err = Common.write_remote_file(SRV2_IP,data[1],filepaths[0])
                 if err[0]:
                     err_list.append('Ошибка записи файла на DHCP2')
                     err_list.append(err[0])
                 else:
-                    err = Common.srvrestart('172.17.0.30')
+                    err = Common.srvrestart(SRV2_IP)
                     if not err:
                         err_list.append('Ошибка перезагрузки DHCP1')
                         err_list.append(err[0])
                     else:
                         return False
         return err_list
-
+## !!!!!!!!!!!!!!!!!!!!!!!!

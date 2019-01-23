@@ -32,5 +32,5 @@ class ProductionConfig(Config):
 
 
 # !!!!!!!!!!!!
-config = TestConfig()
+config = ProductionConfig()
 # !!!!!!!!!!!!
