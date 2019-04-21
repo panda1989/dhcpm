@@ -460,21 +460,36 @@ class Search:
             fCounter -= 1
         return fullLog
 
+    #funcs for processing temp search results
     def put_temp(data):
 
+        """Save tmp data to file with random name
+        Args: data(any type): data to write in tmp file
+        Return: tmp_filename(str):
+        """
 
-
+        #string_generator takes length of file name
         tmp_filename = os.path.join('/var/www/dhcpm/dhcpm/tmp/' + Common.string_generator(4))
         with open(tmp_filename,'wb') as f:
             pickle.dump(data,f)
         return tmp_filename
 
     def get_temp(tmp_filename):
+
+        """Get data from tmp file
+        Args: tmp_filename(str)
+        Return: data from tmp file
+        """
+
         with open(tmp_filename,'rb') as f:
             res = pickle.load(f)
         return res
 
     def clear_temp():
+
+        """Removes used tmp file before new session
+        """
+
         filelist = [f for f in os.listdir('/var/www/dhcpm/dhcpm/tmp/')]
         for f in filelist:
             os.remove(os.path.join('/var/www/dhcpm/dhcpm/tmp/',f))
@@ -482,13 +497,32 @@ class Search:
 
 class CreateConfig:
 
+    """Funcs to form config records and control applying it
+    """ 
+
     def create_hosts_config(type, add_ip, add_mac): 
+
+        """
+        Args(str): type: pon or tech
+                   add_ip:
+                   add_mac:
+        Return: record to write config files
+        """ 
+
         new_host = ('host ' + type + '.' + add_ip + '\n'
                     + '{ hardware ethernet ' + add_mac + ';\n'
                     + 'fixed-address ' + add_ip + '; }')  # -\n
         return new_host
 
     def create_subnets_config(add_net, add_mask, static):
+
+        """
+        Args: add_net(str):
+              add_mask(str):
+              static(int): number of static hosts
+        Return: list of 2 records to write config files
+        """ 
+
         net = IPv4Network(add_net + '/' + add_mask)
         allhosts = [str(i) for i in net.hosts()]
         subnet = str(net.network_address)
@@ -513,6 +547,14 @@ class CreateConfig:
         return new_net1, new_net2
 
     def check_in_file(check_str,*paths):
+
+        """Check if input string is already in config
+        Args: check_str
+              list of paths to check
+        Return: True if no check_str in paths
+                False if check_str is already in configs
+        """
+
         output = []
         for server in (SRV1_IP,SRV2_IP):
             for path in paths:
@@ -527,6 +569,13 @@ class CreateConfig:
             return False
 
     def write_control(data, filepaths):
+
+        """
+        Args: data to write
+              filepaths to check and write
+        Returns list of errors 
+        """
+
         err_list = []
         err = Common.write_remote_file(SRV1_IP,data[0],filepaths[0])
         if err:
@@ -551,29 +600,3 @@ class CreateConfig:
                         return False
         return err_list
 
-## !!!!!!!!!!!!!!!!!!!!!!
-    def write_control_old(data, filepaths):
-        err_list = []
-        err = Common.write_remote_file(SRV1_IP,data[0],filepaths[0])
-        if err[0]:
-            err_list.append('Ошибка записи файла на DHCP1')
-            err_list.append(err[0])
-        else:
-            err = Common.srvrestart(SRV1_IP)
-            if not err:
-                err_list.append('Ошибка перезагрузки DHCP1')
-                err_list.append(err[0])
-            else:
-                err = Common.write_remote_file(SRV2_IP,data[1],filepaths[0])
-                if err[0]:
-                    err_list.append('Ошибка записи файла на DHCP2')
-                    err_list.append(err[0])
-                else:
-                    err = Common.srvrestart(SRV2_IP)
-                    if not err:
-                        err_list.append('Ошибка перезагрузки DHCP1')
-                        err_list.append(err[0])
-                    else:
-                        return False
-        return err_list
-## !!!!!!!!!!!!!!!!!!!!!!!!
