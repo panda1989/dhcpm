@@ -358,9 +358,34 @@ class Subnet:
 
 
 class DynamicHost:
+    """Defines the structure of dynamic host objects.
+    Attributes: self.leaserec(str): not parsed record from dhcpd.leases file
+    as it is
+                self.server(str): server flag
+        Parsed data from leases file:
+                self.lease(str): host address
+                self.starts: lease start time
+                self.ends: lease exceed time
+                self.cltt: broadcast address
+                self.bindingstate: current lease state
+                self.nextbindingstate: next lease state
+                self.rewindbindingstate: previous binding state
+                self.hwaddress: host MAC address
+                self.vendorclassid: vendor data
+                self.circuitid: 
+                self.remoteid:
+
+                dynamic_dict:  {self.lease : lease_instance}
+    """
 
     dynamic_dict = {}  # {self.lease : lease_instance}
     def __init__(self,leaserec,server):
+
+        """Class constructor
+        Args: leaserec(str): record from leases file
+              server(): server flag
+        """
+
         self.leaserec = leaserec
         self.server = server
         self.lease=self.starts=self.ends=self.cltt=self.bindingstate=self.nextbindingstate=self.rewindbindingstate=self.hwaddress=self.vendorclassid=self.circuitid=self.remoteid = ''
@@ -390,12 +415,24 @@ class DynamicHost:
         DynamicHost.dynamic_dict[self.lease] = self
 
     def __repr__(self):
+        """Show not parsed record""" 
         return self.leaserec
 
 
 class Search:
 
+    """Set of funcs for log search
+    """
+
     def googler(in_list,out_list,var):
+
+        """Search engine
+        Args: in_list: empty or previous results
+              out_list: 
+              var(str): search argument
+        Return: sorted out_list with search results
+        """
+
         out_list.append('----------------------------------------')
         for i in sorted(in_list):
             if var in i:
@@ -404,9 +441,13 @@ class Search:
         return out_list
 
     def logLoader(fCounter):
+
+        """Loads dhcp.log files for fCounter days
+        Args: fCounter(int): number of days to get logs
+        Return: list of strings from logs
+        """
+
         fullLog = []
-        #logFileList1 = sorted([i for i in Common.SSHcmd(SRV1_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'ls /var/log/ | grep dhcp')[0].split('\n')])
-        #logFileList2 = sorted([i for i in Common.SSHcmd(SRV2_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'ls /var/log/ | grep dhcp')[0].split('\n')])
         logFileList1 = [i for i in Common.SSHcmd(SRV1_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'ls /var/log/ | grep dhcp')[0].split('\n')]
         logFileList2 = [i for i in Common.SSHcmd(SRV2_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'ls /var/log/ | grep dhcp')[0].split('\n')]
         while fCounter >= 0:
@@ -420,6 +461,9 @@ class Search:
         return fullLog
 
     def put_temp(data):
+
+
+
         tmp_filename = os.path.join('/var/www/dhcpm/dhcpm/tmp/' + Common.string_generator(4))
         with open(tmp_filename,'wb') as f:
             pickle.dump(data,f)
