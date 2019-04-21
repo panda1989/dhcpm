@@ -7,11 +7,11 @@ class Config:
     paths to working directories/files)
     config variable is used for choosing proper  file (test/prod)
     """
-    SRV1_IP = '172.17.0.26'
-    SRV2_IP = '172.17.0.30'
+    SRV1_IP = '1.1.1.1'
+    SRV2_IP = '1.1.1.2'
     SRV_PORT = 45242
     SRV_LOGIN = 'dhcpm'
-    SRV_PASS = 'p@ss'
+    SRV_PASS = 'p@ssword'
 
     PATH_SUBNETS1 = '/etc/dhcp/subnets1'
     PATH_SUBNETS2 = '/etc/dhcp/subnets2'
