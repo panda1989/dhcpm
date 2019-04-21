@@ -1,6 +1,9 @@
 #! /usr/bin/python
 # -*- coding: utf-8 -*-
 
+"""Support functions for dhcpm
+"""
+
 import os
 import re
 import time
@@ -10,6 +13,7 @@ import random
 from ipaddress import IPv4Address,IPv4Network
 from .config import config
 
+#load constants from config.py
 SRV1_IP = config.SRV1_IP
 SRV2_IP = config.SRV2_IP
 SRV_PORT = config.SRV_PORT
@@ -25,39 +29,77 @@ PATH_LEASES = config.PATH_LEASES
 LEASES_TEMPLATE = config.LEASES_TEMPLATE
 
 class DubbedNetworkError(ValueError):
-    pass
+    """A value error related to repeat of subnet record"""
+
 
 class Common:
 
+    """Functions for common purposes: get information,restart, etc.
+    """
+
     def srvrestart(server_ip):
+
+        """Connects to selected server IP(str) over SSH and restarts
+        isc-dhcpd-server process.
+        Return: True if restarted, False if not restarted, None if error
+        """
+
+        #get current dhcpd process PID
         pid_before = Common.SSHcmd(server_ip,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat /var/run/dhcp-server/dhcpd.pid')[0]
+        #restart server
         Common.SSHcmd(server_ip,SRV_PORT,SRV_LOGIN,SRV_PASS,'sudo systemctl restart isc-dhcp-server.service')
         time.sleep(5)
+        #get dhcpd process PID after restart
         pid_after = Common.SSHcmd(server_ip,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat /var/run/dhcp-server/dhcpd.pid')[0]
+        #check status of dhcpd process
         check = Common.SSHcmd(server_ip,SRV_PORT,SRV_LOGIN,SRV_PASS,'sudo systemctl is-failed isc-dhcp-server.service')[0]
+        #X3 why try/except
+        #return True if restarted, False if not restarted, None if error
         try:
+            #if PID had not changed or if state is bad
             if pid_before == pid_after or check == 'failed':
                 return False
             else:
                 return True
+        #in case of error
         except:
             return None
 
     def SSHcmd(hostname,port,username,password,arg):
+
+        """Execute command over SSH and get reply.
+        Args: hostname(str),port(int),username(str),password(str):
+        parameters for SSH connection
+              arg(str): command to execute on remote server
+        Return: [stdout,stderr] list with results of command
+        """
+
+        #create paramiko object and connect over SSH
         cl = paramiko.SSHClient()
         cl.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         cl.connect(hostname=hostname,port=port,username=username,password=password)
         output = []
+        #define vars to return standart streams and send result of 'arg' to it
         stdin,stdout,stderr=cl.exec_command(arg)
         output.append(stdout.read().decode('utf-8')) #.decode('utf-8') for Python3
         output.append(stderr.read().decode('utf-8')) #.decode('utf-8') for Python3
         cl.close()
+        #return [stdout,stderr]
         return output
 
     def write_remote_file(server_ip,conf_str,remote_file):
-        #writecmd = 'sudo echo -e ' + "'" + conf_str + "' >> " + remote_file
+
+        """Write string (conf_str) to remote file over SSH.
+        Args: server_ip(str),
+              conf_str(str): string to write to remote file,
+              remote_file(str): absolute to path to remote file.
+        Return: False if no error, True if some error, error as string if error
+        """
+
+        #send conf_str to remote file by tee command
         writecmd = 'echo "' + conf_str + '" | sudo tee -a ' + remote_file
         err = Common.SSHcmd(server_ip,SRV_PORT,SRV_LOGIN,SRV_PASS,writecmd)[1]
+        #return error as string if error, True if some error, False if no error
         try:
             if err:
                 return err
@@ -67,17 +109,36 @@ class Common:
             return True
 
     def get_subnets():
+
+        """Analyze subnets1.conf and subnets2.conf and create Subnet instances
+        for every subnet in config. Paths to subnets.conf files are taken
+        from config class. Then read files over SSH.
+        Return subnets_dict ({self.subnet : subnet_instance})
+        """
+
+        #pattern for subnet record in config file
         pattern_subnet = re.compile(r'subnet [\d\.\w ]+ \{.*?\n\}',re.DOTALL)
+        #read current config files
         subnets1 = Common.SSHcmd(SRV1_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + PATH_SUBNETS1)[0]
         subnets2 = Common.SSHcmd(SRV2_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + PATH_SUBNETS2)[0]
+        #try to create Subnet class instance for each subnet record
         for s in re.findall(pattern_subnet, subnets1+subnets2):
             try:
                 inst = Subnet(s,1)
+            #for DubbedNetworkError: if network has already processed from another file
             except ValueError:
                 pass
+        #return dict with {subnet : subnet_instance} form
         return Subnet.subnets_dict
 
     def get_dynamic_hosts():
+
+        """Analyze dhcp.leases files and create DynamicHost instances for each
+        dynamic entry. Paths to dhcpd.leases files are taken from config class.
+        Then read files over SSH.
+        Return dynamic_dict ({self.lease : lease_instance})
+        """
+
         pattern_lease = re.compile(r'lease [\d\.]+ \{.*?\n\}',re.DOTALL)
         leases1 = Common.SSHcmd(SRV1_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + PATH_LEASES)[0]
         leases2 = Common.SSHcmd(SRV2_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + PATH_LEASES)[0]
@@ -88,38 +149,75 @@ class Common:
         return DynamicHost.dynamic_dict
 
     def get_static_hosts():
+
+        """Analyze hosts_pon and hosts_tech files on both servers and create
+        StaticHost instances for every dynamic entry. Paths to hosts_pon
+        and hosts_tech files are taken from config class. Then read files over SSH.
+        Return static_dict ({self.ip : static_instance})
+        """
+
         pattern_host = re.compile(r'\{ .*?}',re.DOTALL)
         hostspon1 = Common.SSHcmd(SRV1_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + PATH_PON)[0]
         hostspon2 = Common.SSHcmd(SRV2_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + PATH_PON)[0]
         hoststech1 = Common.SSHcmd(SRV1_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + PATH_TECH)[0]
         hoststech2 = Common.SSHcmd(SRV2_IP,SRV_PORT,SRV_LOGIN,SRV_PASS,'cat ' + PATH_TECH)[0]
+        #check if files on both servers are equal
         if hostspon1 == hostspon2 and hoststech1 == hoststech2:
+            #if files are equal, we can process only one of them
             hostspon = hostspon1
             hoststech = hoststech1
+            #read data from files
             for file in hostspon, hoststech:
                 for h in re.findall(pattern_host, file):
+                    #mark the source of record in object
                     if file is hostspon:
                         source = 'hosts_pon'
                         inst = StaticHost(h,source)
                     if file is hoststech:
                         source = 'hosts_tech'
                         inst = StaticHost(h,source)
-
+        #if files are not equal, show warning
+        #user must manually check and fix difference
         else:
-            return 'hostspon!=hostspon'
+            return 'hostspon!=hostspon \n Check and fix files'
         return StaticHost.static_dict
 
     def string_generator(str_len,alphabet='abcdefghijklmnopqrstuvwxyz'):
+
+        """Create pseudo-random string
+        Args: str_len(int): length of output string
+              alphabet(str): set of chracters from which the output string
+        is composed (a-z by default if no alphabet argument has sent)
+        Return: (str)
+        """
+
         res = []
         while str_len:
+            #take random char from alphabet and append it to res
             res.append(alphabet[random.randint(0,len(alphabet) - 1)])
             str_len -= 1
+        #list => str
         return ''.join(res)
 
 class StaticHost:
 
+    """Defines the structure of static hosts objects.
+    Attributes: self.hw(str): MAC address of object
+                self.ip(str): IP address of object
+                self.type==self.source(str): "host_pon" or "host_tech": source
+    file for object
+                self.hostrec(str): not parsed record from hosts file as it is
+    """
+
     static_dict = {}
     def __init__(self,hostrec,source):
+
+        """
+        Args: hostrec(str): record from hosts_pon or hosts_tech
+              source(str): flag specifies source file info get from
+        """
+
+        #init: error protection if some data is out
         self.hw=self.ip = ''
         self.hostrec = hostrec
         self.source = source
@@ -132,17 +230,48 @@ class StaticHost:
         StaticHost.static_dict[self.ip] = self
 
     def __repr__(self):
+        """Not parsed record from hosts file as it is"""
         return self.hostrec
 
 
 class Subnet:
 
+    """Defines the structure of subnet objects.
+    Attributes: self.subnetrec(str): not parsed record from subnet file
+    as it is
+                self.server(str): ?????????????????????????????????????
+                self.hostlist(list): list of dynamic hosts from dhcpd.leases
+        Parsed data from subnets file:
+                self.subnet(str): subnet address
+                self.router: router address
+                self.mask: network mask
+                self.broadcast: broadcast address
+                self.stroutes: static route (option 33)
+                self.rfc3442: static route (option 121)
+                self.range1start: first address of first server dynamic pool
+                self.range1end: last address of first server dynamic pool
+                self.range2start: first address of second server dynamic pool
+                self.range2end: last address of first server dynamic pool
+
+                self.network(IPv4Address): IPv4 network object
+                self.firststatic(str): first address of common static pool
+                self.laststatic(str): last address of common static pool
+    """
+
+
     subnets_dict = {}  # {self.subnet : subnet_instance}
     def __init__(self,subnetrec,server):
+
+        """Args: subnetrec(str): record from subnets file
+                 server():?????delete???????
+        """
+        #init: error protection if some data is out
         self.subnet=self.range1start=self.range1end=self.range2start=self.range2end=self.router=self.mask=self.broadcast=self.stroutes=self.rfc3442=self.network=self.firststatic=self.laststatic = ''
         self.subnetrec = subnetrec
         self.server = server
+        #empty list of hosts in subnet filled by class methods
         self.hostlist = []
+        #parsing subnet record from file
         for line in subnetrec.split('\n'):
             if line.startswith('subnet '):
                 self.subnet = re.search(r'[\d\.]+',line).group(0)
@@ -157,10 +286,13 @@ class Subnet:
             if 'option rfc3442-classless-static-routes' in line:
                 self.rfc3442 = line[39:-1]
             if 'range ' in line:
+                #if subnet already in subnets_dict
                 if self.subnet in Subnet.subnets_dict.keys():
+                    #consider "range " in file as second pool
                     Subnet.subnets_dict[self.subnet].range2start, Subnet.subnets_dict[self.subnet].range2end = [r.strip() for r in re.findall(r' [\d\.]+', line)]
                     raise DubbedNetworkError
                 else:
+                    #consider "range " in file as first pool if this subnet is new
                     Subnet.subnets_dict[self.subnet] = self
                     self.range1start, self.range1end = [r.strip() for r in re.findall(r' [\d\.]+', line)]
         self.network = IPv4Network(self.subnet + '/' + self.mask)
@@ -168,15 +300,29 @@ class Subnet:
         self.laststatic = str(IPv4Address(self.range1start) - 1)
 
     def gethosts(self,leases):
+
+        """Append leases from leases_dict to hostlist attribute
+        Args: leases(dict): dynamic_dict
+        Return: None
+        """
+
         for lease in leases.keys():
             if IPv4Address(lease) in self.network:
                 self.hostlist.append(leases[lease])
 
     def print_subnet_dynamic(self, leasedict):
+
+        """Forms list of dynamic leases
+        Args: leasedict(dict): dynamic_dict
+        Return: dynamic_page_list:
+        """
+
         dynamic_page_list = []
         net = self.subnet
         subdict = Subnet.subnets_dict[net]
+        #adds list of hosts to hostlist attribute
         Subnet.subnets_dict[net].gethosts(leasedict)
+        #create user-friendly
         dynamic_page_list.append('Динамические хосты \tПодсеть\t' + str(net) + '/' + str(subdict.mask))
         dynamic_page_list.append('')
         dynamic_page_list.append('Range 1: ' + subdict.range1start + ' - ' + subdict.range1end)
@@ -189,6 +335,10 @@ class Subnet:
         return dynamic_page_list
 
     def print_subnet_static(self, hostdict):
+
+        """
+        """
+
         static_page_list = []
         net = self.subnet
         subdict = Subnet.subnets_dict[net]

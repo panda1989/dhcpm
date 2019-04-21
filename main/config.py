@@ -2,6 +2,11 @@
 # -*- coding: utf-8 -*-
 
 class Config:
+    """
+    Contains constants, used in dhcpm system (servers ip addresses,
+    paths to working directories/files)
+    config variable is used for choosing proper  file (test/prod)
+    """
     SRV1_IP = '172.17.0.26'
     SRV2_IP = '172.17.0.30'
     SRV_PORT = 45242
@@ -17,7 +22,6 @@ class Config:
     PATH_LEASES = ''
 
 
-    LEASES_TEMPLATE = "# The format of this file is documented in the dhcpd.leases(5) manual page.\n# This lease file was written by isc-dhcp-4.3.5\n\n# authoring-byte-order is generated, DO NOT DELETE\nauthoring-byte-order little-endian;\n\n"
     LEASES_TEMPLATE = """# The format of this file is documented in the dhcpd.leases(5) manual page.
 # This lease file was written by isc-dhcp-4.3.5
 
